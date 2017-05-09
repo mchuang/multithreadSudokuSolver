@@ -23,7 +23,7 @@ class Sudoku:
                 note.append(set())
         self.puzzle.append(values)
         self.notes.append(note)
-        self.locks.append([threading.Lock() for x in range(0, 9)])
+        self.locks.append([threading.RLock() for x in range(0, 9)])
     
     def isSudokuPuzzle(self):
         if len(puzzle) != 9:
