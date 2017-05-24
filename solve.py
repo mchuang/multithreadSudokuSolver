@@ -1,6 +1,6 @@
 import sys, threading, pdb
 
-import sudoku, worker
+import sudoku, worker, rowWorker, colWorker, boxWorker
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
@@ -21,10 +21,11 @@ if __name__ == '__main__':
                         sys.exit()
                 threads = []
                 wid = 0
-                for job in range(0, 3):
-                    for location in range(0, 9):
-                        threads.append(worker.Worker(wid, job, location))
-                        wid+=1
+                for location in range(0, 9):
+                    threads.append(rowWorker.RowWorker(location*3, location))
+                    threads.append(colWorker.ColWorker(location*3+1, location))
+                    threads.append(boxWorker.BoxWorker(location*3+2, location))
+
                 worker.Worker.setSudoku(sudo)
                 print(worker.Worker.sudoku)
                 for thread in threads:
