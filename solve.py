@@ -1,6 +1,10 @@
 import sys, threading, pdb
 
-import sudoku, worker, rowWorker, colWorker, boxWorker
+from sudoku import Sudoku
+from rowWorker import RowWorker
+from colWorker import ColWorker
+from boxWorker import BoxWorker
+from worker import Worker
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
@@ -11,7 +15,7 @@ if __name__ == '__main__':
                 continue
             else:
                 f = open(inputFile, 'r')
-                sudo = sudoku.Sudoku()
+                sudo = Sudoku()
                 for line in f:
                     row = line.strip().split(',')
                     if len(row) != 9: sys.exit() #invalid number of values for sudoku
@@ -22,12 +26,12 @@ if __name__ == '__main__':
                 threads = []
                 wid = 0
                 for location in range(0, 9):
-                    threads.append(rowWorker.RowWorker(location*3, location))
-                    threads.append(colWorker.ColWorker(location*3+1, location))
-                    threads.append(boxWorker.BoxWorker(location*3+2, location))
+                    threads.append(RowWorker(location*3, location))
+                    threads.append(ColWorker(location*3+1, location))
+                    threads.append(BoxWorker(location*3+2, location))
 
-                worker.Worker.setSudoku(sudo)
-                print(worker.Worker.sudoku)
+                Worker.setSudoku(sudo)
+                print(Worker.sudoku)
                 for thread in threads:
                     thread.start()
                 

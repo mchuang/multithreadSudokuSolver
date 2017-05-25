@@ -3,11 +3,11 @@ import threading
 class Worker(threading.Thread):
     sudoku = None
     validEvent = threading.Event() 
-    phaseSemaphore = threading.Semaphore(value=27)
     rmDirValsEvent = threading.Event()
-    oneValEvent = threading.Event()
+    checkValsEvent = threading.Event()
     
     validated = 0
+    phaseCount = 0
 
     def __init__(self, workerId):
         threading.Thread.__init__(self)
@@ -17,6 +17,21 @@ class Worker(threading.Thread):
     def setSudoku(entry):
         Worker.sudoku = entry
         Worker.validated = 0
+
+    def getLock(i, j):
+        return Worker.sudoku.locks[i][j]
+
+    def getNotes(i, j):
+        return Worker.sudoku.notes[i][j]
+
+    def getCell(i, j):
+        return Worker.sudoku.puzzle[i][j]
+
+    def setCell(value, i, j):
+        Worker.sudoku.puzzle[i][j] = value
+
+    def emptyNotes(i, j):
+        Worker.sudoku.notes[i][j] = set()
 
     def isValid(self):
         return False
@@ -35,53 +50,62 @@ class Worker(threading.Thread):
 
     def solve(self):
         if 0 in self.values: self.values.remove(0)
-
-    def evaluateCell(self, row, col):
-        if Worker.sudoku.locks[row][col].acquire():
-            if Worker.sudoku.puzzle[row][col] != 0:
-                Worker.sudoku.locks[row][col].release()
-                return Worker.sudoku.puzzle[row][col]
+        while len(self.values) < 9:
+            self.removePhase()
+            Worker.phaseCount += 1
+            if threading.active_count()-1 == Worker.phaseCount:
+                Worker.phaseCount = 0
+                self.checkValsEvent.clear()
+                self.rmDirValsEvent.set()
             else:
-                num = 0
-                num = self.removeVals(row, col)
-                if num == 0: 
-                    num = self.checkNeighbors(row, col)
-                if num: Worker.sudoku.puzzle[row][col] = num        
-                Worker.sudoku.locks[row][col].release()
-                return num
-        else:
-            return 0
+                self.rmDirValsEvent.wait()
+            #self.checkPhase()
+            Worker.phaseCount += 1
+            if threading.active_count()-1 == Worker.phaseCount:
+                Worker.phaseCount = 0
+                self.rmDirValsEvent.clear()
+                self.checkValsEvent.set()
+            else:
+                self.checkValsEvent.wait()
+
+    def removePhase(self):
+        return None
+
+    def checkPhase(self):
+        return None
         
     #Removes direct impossible values
     def removeVals(self, row, col):
         #Goal is to minimize possibleValues to solve for cell value
         #Remove impossible values in same row
+        notes = Worker.getNotes(row, col)
         for value in Worker.sudoku.puzzle[row]:
-            if value in Worker.sudoku.notes[row][col]:
-                Worker.sudoku.notes[row][col].remove(value)
+            if value in notes:
+                notes.remove(value)
         #Remove impossible values in same col
         for neighbor in Worker.sudoku.puzzle:
             value = neighbor[col]
-            if value in Worker.sudoku.notes[row][col]:
-                Worker.sudoku.notes[row][col].remove(value)
+            if value in notes:
+                notes.remove(value)
         x, y = int(row/3), int(col/3)
         for i in range(x*3, (x+1)*3):
             for j in range(y*3, (y+1)*3):
-                value = Worker.sudoku.puzzle[i][j]
-                if value in Worker.sudoku.notes[row][col]:
-                    Worker.sudoku.notes[row][col].remove(value)
+                Worker.setCell(value, i, j)
+                if value in notes:
+                    notes.remove(value)
         #Check and update possible values to avoid repetitive computation
-        if len(Worker.sudoku.notes[row][col]) == 1:
-            num = Worker.sudoku.notes[row][col].pop()
-            Worker.sudoku.puzzle[row][col] = num
+        if len(notes) == 1:
+            num = notes.pop()
+            Worker.setCell(num, row, col)
+            print(Worker.sudoku)
             return num
 
     def run(self):
         if self.isValid():
             Worker.validated += 1
             if Worker.validated == 27:
-                self.validEvent.set()
-        Worker.checkEvent.wait()
+                Worker.validEvent.set()
+        Worker.validEvent.wait()
         self.solve()
         print(self)
         print(Worker.sudoku)

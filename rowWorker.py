@@ -1,6 +1,6 @@
-import worker
+from worker import Worker
 
-class RowWorker(worker.Worker):
+class RowWorker(Worker):
 
     def __init__(self, workerId, location):
         super().__init__(workerId)
@@ -12,32 +12,40 @@ class RowWorker(worker.Worker):
             self.values.add(num)
         return self.values.issubset(validNums)
 
-    def solve(self):
-        if 0 in self.values: self.values.remove(0)
-        while len(self.values) < 9:
-            answer = 0
-            for index in range(0, 9):
-                try:
-                    Worker.sudoku.locks[self.loc][index].acquire()
-                    answer = self.removeVals(self.loc, index)
-                    answer = self.checkNeighbors(self.loc, index)
-                    if answer: self.values.append(answer)
-                finally:
-                    Worker.sudoku.locks[self.loc][index].release()
+    def removePhase(self):
+        for index in range(0, 9):
+            try:
+                Worker.getLock(self.loc, index).acquire()
+                if Worker.getCell(self.loc, index): continue
+                self.removeVals(self.loc, index)
+                if len(Worker.getNotes(self.loc, index)) == 1:
+                    num = Worker.getNotes(self.loc, index).pop()
+                    Worker.setCell(num, self.loc, index)
+                    self.values.add(num)
+            finally:
+                Worker.getLock(self.loc, index).release()
+
+    def checkPhase(self):
+        for index in range(0, 9):
+            try:
+                Worker.getLock(self.loc, index).acquire()
+                if Worker.getCell(self.loc, index): continue
+                num = self.checkNeighbors(self.loc, index)
+                if num: self.values.add(num)
+            finally:
+                Worker.getLock(self.loc, index).release()
 
     def checkNeighbors(self, row, col):
-        if Worker.sudoku.puzzle[row][col]: return Worker.sudoku.puzzle[row][col]
-        possibleVals = set(Worker.sudoku.notes[row][col])
+        possibleVals = set(getNotes(row, col))
         for ind in range(0, 9):
             if ind != col:
-                possibleVals -= Worker.sudoku.notes[row][ind]
+                possibleVals -= getNotes(row, ind)
 
         if len(possibleValues) == 1:
             num = possibleValues.pop()
-            Worker.sudoku.puzzle[row][col] = num
-            Worker.sudoku.notes[row][col] = set()
+            Worker.setCell(num, row, col)
+            Worker.emptyNotes(row, col)
             return num
-        return 0
 
     def __str__(self):
         return super().__str__() + ":Row {0}".format(self.loc)
