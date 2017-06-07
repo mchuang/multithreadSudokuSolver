@@ -16,12 +16,15 @@ class RowWorker(Worker):
         for index in range(0, 9):
             try:
                 Worker.getLock(self.loc, index).acquire()
-                if Worker.getCell(self.loc, index): continue
-                self.removeVals(self.loc, index)
-                if len(Worker.getNotes(self.loc, index)) == 1:
-                    num = Worker.getNotes(self.loc, index).pop()
-                    Worker.setCell(num, self.loc, index)
-                    self.values.add(num)
+                if Worker.getCell(self.loc, index):
+                    self.values.add(Worker.getCell(self.loc, index))
+                else:
+                    self.removeVals(self.loc, index)
+                    if len(Worker.getNotes(self.loc, index)) == 1:
+                        num = Worker.getNotes(self.loc, index).pop()
+                        Worker.setCell(num, self.loc, index)
+                        self.values.add(num)
+                        print(Worker.sudoku)
             finally:
                 Worker.getLock(self.loc, index).release()
 
@@ -29,9 +32,11 @@ class RowWorker(Worker):
         for index in range(0, 9):
             try:
                 Worker.getLock(self.loc, index).acquire()
-                if Worker.getCell(self.loc, index): continue
-                num = self.checkNeighbors(self.loc, index)
-                if num: self.values.add(num)
+                if Worker.getCell(self.loc, index):
+                    self.values.add(Worker.getCell(self.loc, index))
+                else:
+                    num = self.checkNeighbors(self.loc, index)
+                    if num: self.values.add(num)
             finally:
                 Worker.getLock(self.loc, index).release()
 
@@ -39,9 +44,9 @@ class RowWorker(Worker):
         possibleVals = set(getNotes(row, col))
         for ind in range(0, 9):
             if ind != col:
-                possibleVals -= getNotes(row, ind)
+                possibleVals -= Worker.getNotes(row, ind)
 
-        if len(possibleValues) == 1:
+        if len(possibleVals) == 1:
             num = possibleValues.pop()
             Worker.setCell(num, row, col)
             Worker.emptyNotes(row, col)

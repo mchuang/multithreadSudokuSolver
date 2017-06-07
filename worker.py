@@ -18,6 +18,9 @@ class Worker(threading.Thread):
         Worker.sudoku = entry
         Worker.validated = 0
 
+    def setNumThreads(value):
+        Worker.numThreads = value
+
     def getLock(i, j):
         return Worker.sudoku.locks[i][j]
 
@@ -53,7 +56,7 @@ class Worker(threading.Thread):
         while len(self.values) < 9:
             self.removePhase()
             Worker.phaseCount += 1
-            if threading.active_count()-1 == Worker.phaseCount:
+            if threading.active_count() - 1 == Worker.phaseCount:
                 Worker.phaseCount = 0
                 self.checkValsEvent.clear()
                 self.rmDirValsEvent.set()
@@ -61,12 +64,13 @@ class Worker(threading.Thread):
                 self.rmDirValsEvent.wait()
             #self.checkPhase()
             Worker.phaseCount += 1
-            if threading.active_count()-1 == Worker.phaseCount:
+            if threading.active_count() - 1 == Worker.phaseCount:
                 Worker.phaseCount = 0
                 self.rmDirValsEvent.clear()
                 self.checkValsEvent.set()
             else:
                 self.checkValsEvent.wait()
+            #Worker.phaseCount -= 1
 
     def removePhase(self):
         return None
@@ -90,15 +94,9 @@ class Worker(threading.Thread):
         x, y = int(row/3), int(col/3)
         for i in range(x*3, (x+1)*3):
             for j in range(y*3, (y+1)*3):
-                Worker.setCell(value, i, j)
+                value = Worker.getCell(i, j)
                 if value in notes:
                     notes.remove(value)
-        #Check and update possible values to avoid repetitive computation
-        if len(notes) == 1:
-            num = notes.pop()
-            Worker.setCell(num, row, col)
-            print(Worker.sudoku)
-            return num
 
     def run(self):
         if self.isValid():
@@ -108,7 +106,6 @@ class Worker(threading.Thread):
         Worker.validEvent.wait()
         self.solve()
         print(self)
-        print(Worker.sudoku)
 
     def __str__(self):
         return 'Worker {0}'.format(self.wid)

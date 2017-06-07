@@ -31,12 +31,15 @@ class BoxWorker(Worker):
             for j in range(col*3, (col+1)*3):
                 try:
                     Worker.getLock(i, j).acquire()
-                    if Worker.getCell(i, j): continue
-                    self.removeVals(i, j)
-                    if len(Worker.getNotes(i, j)) == 1:
-                        num = Worker.getNotes(i, j).pop()
-                        Worker.setCell(num, i, j)
-                        self.values.add(num)
+                    if Worker.getCell(i, j):
+                        self.values.add(Worker.getCell(i, j))
+                    else:
+                        self.removeVals(i, j)
+                        if len(Worker.getNotes(i, j)) == 1:
+                            num = Worker.getNotes(i, j).pop()
+                            Worker.setCell(num, i, j)
+                            self.values.add(num)
+                            print(Worker.sudoku)
                 finally:
                     Worker.getLock(i, j).release()
 
@@ -46,9 +49,11 @@ class BoxWorker(Worker):
             for j in range(col*3, (col+1)*3):
                 try:
                     Worker.getLock(i, j).acquire()
-                    if Worker.getCell(i, j): continue
-                    num = self.checkNeighbors(i, j)
-                    if num: self.values.add(num)
+                    if Worker.getCell(i, j):
+                        self.values.add(Worker.getCell(i, j))
+                    else:    
+                        num = self.checkNeighbors(i, j)
+                        if num: self.values.add(num)
                 finally:
                     Worker.getLock(i, j).release()
 
@@ -60,8 +65,8 @@ class BoxWorker(Worker):
                 if not (i == row and j == col):
                     possibleVals -= Worker.getNotes(i, j)
 
-        if len(possibleValues) == 1:
-            num = possibleValues.pop()
+        if len(possibleVals) == 1:
+            num = possibleVals.pop()
             Worker.setCell(num, row, col)
             Worker.emptyNotes(row, col)
             return num
